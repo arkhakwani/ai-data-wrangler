@@ -2,17 +2,19 @@ import streamlit as st
 import pandas as pd
 import os
 import tempfile
-import subprocess
-import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
+import openai
 
+# Set page config
 st.set_page_config(page_title="AI Data Wrangler", layout="wide")
-st.title("🤖 AI-Powered Data Wrangler (Offline + Free)")
+st.title("🤖 AI-Powered Data Wrangler")
 
-llm_model = st.selectbox("Select LLM for Data Wrangling", ["mistral (Offline via Ollama)", "gpt-4 (Online via OpenAI)"])
+# Select model (only GPT-4)
+st.markdown("LLM: `gpt-4 (via OpenAI)`")
 
+# Upload file
 uploaded_file = st.file_uploader("Upload your raw data file (CSV, Excel, JSON, Parquet)", type=["csv", "xlsx", "xls", "json", "parquet"])
 
 if uploaded_file:
@@ -44,7 +46,7 @@ if uploaded_file:
     st.subheader("📎 Outlier Detection (Before Cleaning)")
     numeric_cols = df.select_dtypes(include='number')
     if not numeric_cols.empty:
-        melted = numeric_cols.melt(var_name="variable", value_name="value").dropna()
+        melted = numeric_cols.melt()
         fig4, ax4 = plt.subplots(figsize=(12, 6))
         sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
         st.pyplot(fig4)
@@ -52,9 +54,6 @@ if uploaded_file:
         st.info("No numeric data for outlier visualization.")
 
     sample_csv = df.sample(min(500, len(df))).to_csv(index=False)
-    sample_file = os.path.join(tempfile.gettempdir(), "sample.csv")
-    with open(sample_file, "w") as f:
-        f.write(sample_csv)
 
     prompt = f"""
 You are a data wrangling expert. A user has uploaded a dataset. Your job is to:
@@ -75,28 +74,21 @@ Respond ONLY with executable Python code. Do not include explanations.
 """
 
     st.subheader("🧠 LLM Analysis & Cleaning Plan")
-    with st.spinner("Running selected LLM..."):
-        if llm_model.startswith("mistral"):
-            result = subprocess.run([
-                "ollama", "run", "mistral", prompt
-            ], capture_output=True, text=True)
-            code_output = result.stdout if result.returncode == 0 else None
-        elif llm_model.startswith("gpt-4"):
-            import openai
-            openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.2
-                )
-                code_output = response.choices[0].message.content.strip()
-            except Exception as e:
-                st.error(f"GPT-4 request failed: {e}")
-                code_output = None
+    with st.spinner("Running GPT-4..."):
+        openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2
+            )
+            code_output = response.choices[0].message.content.strip()
+        except Exception as e:
+            st.error(f"GPT-4 request failed: {e}")
+            code_output = None
 
     if not code_output:
-        st.error("LLM failed to respond. Check your setup and try again.")
+        st.error("LLM failed to respond. Check your API key and try again.")
     else:
         st.code(code_output, language="python")
         if any(unsafe in code_output.lower() for unsafe in ["import os", "subprocess", "sys", "eval", "exec"]):
@@ -121,9 +113,9 @@ Respond ONLY with executable Python code. Do not include explanations.
                 st.subheader("📎 Outlier Detection (After Cleaning)")
                 numeric_clean = cleaned_df.select_dtypes(include='number')
                 if not numeric_clean.empty:
-                    melted_clean = numeric_clean.melt(var_name="variable", value_name="value").dropna()
+                    melted2 = numeric_clean.melt()
                     fig5, ax5 = plt.subplots(figsize=(12, 6))
-                    sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
+                    sns.boxplot(y="variable", x="value", data=melted2, ax=ax5)
                     st.pyplot(fig5)
                 else:
                     st.info("No numeric data for outlier visualization.")
