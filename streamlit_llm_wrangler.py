@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import tempfile
 import subprocess
-import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
@@ -40,19 +39,6 @@ if uploaded_file:
     fig, ax = plt.subplots(figsize=(12, 6))
     sns.heatmap(df.isnull(), cbar=False, ax=ax)
     st.pyplot(fig)
-
-    st.subheader("📎 Outlier Detection (Before Cleaning)")
-    numeric_cols = df.select_dtypes(include='number')
-    if not numeric_cols.empty:
-        melted = numeric_cols.melt(var_name='variable', value_name='value')
-        if melted.empty:
-            st.info("No numeric data for outlier visualization (melted data empty).")
-        else:
-            fig4, ax4 = plt.subplots(figsize=(12, 6))
-            sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
-            st.pyplot(fig4)
-    else:
-        st.info("No numeric data for outlier visualization.")
 
     sample_csv = df.sample(min(500, len(df))).to_csv(index=False)
     sample_file = os.path.join(tempfile.gettempdir(), "sample.csv")
@@ -120,19 +106,6 @@ Respond ONLY with executable Python code. Do not include explanations.
                 fig2, ax2 = plt.subplots(figsize=(12, 6))
                 sns.heatmap(cleaned_df.isnull(), cbar=False, ax=ax2)
                 st.pyplot(fig2)
-
-                st.subheader("📎 Outlier Detection (After Cleaning)")
-                numeric_clean = cleaned_df.select_dtypes(include='number')
-                if not numeric_clean.empty:
-                    melted_clean = numeric_clean.melt(var_name='variable', value_name='value')
-                    if melted_clean.empty:
-                        st.info("No numeric data for outlier visualization (melted data empty).")
-                    else:
-                        fig5, ax5 = plt.subplots(figsize=(12, 6))
-                        sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
-                        st.pyplot(fig5)
-                else:
-                    st.info("No numeric data for outlier visualization.")
 
                 st.subheader("📉 Correlation Matrix")
                 numeric_df = cleaned_df.select_dtypes(include=["number"])
