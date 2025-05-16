@@ -2,15 +2,15 @@ import streamlit as st
 import pandas as pd
 import os
 import tempfile
-import subprocess
+import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
 
 st.set_page_config(page_title="AI Data Wrangler", layout="wide")
-st.title("🤖 AI-Powered Data Wrangler (Offline + Free)")
+st.title("🤖 AI-Powered Data Wrangler (Online LLM Only)")
 
-llm_model = st.selectbox("Select LLM for Data Wrangling", ["mistral (Offline via Ollama)", "gpt-4 (Online via OpenAI)"])
+llm_model = st.selectbox("Select LLM for Data Wrangling", ["gpt-4", "gpt-3.5-turbo"])
 
 uploaded_file = st.file_uploader("Upload your raw data file (CSV, Excel, JSON, Parquet)", type=["csv", "xlsx", "xls", "json", "parquet"])
 
@@ -40,11 +40,16 @@ if uploaded_file:
     sns.heatmap(df.isnull(), cbar=False, ax=ax)
     st.pyplot(fig)
 
-    sample_csv = df.sample(min(500, len(df))).to_csv(index=False)
-    sample_file = os.path.join(tempfile.gettempdir(), "sample.csv")
-    with open(sample_file, "w") as f:
-        f.write(sample_csv)
+    st.subheader("📉 Correlation Matrix")
+    numeric_df = df.select_dtypes(include=["number"])
+    if not numeric_df.empty:
+        fig3, ax3 = plt.subplots(figsize=(10, 8))
+        sns.heatmap(numeric_df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax3)
+        st.pyplot(fig3)
+    else:
+        st.info("No numeric data to show correlation matrix.")
 
+    sample_csv = df.sample(min(500, len(df))).to_csv(index=False)
     prompt = f"""
 You are a data wrangling expert. A user has uploaded a dataset. Your job is to:
 - Analyze missing values
@@ -54,7 +59,7 @@ You are a data wrangling expert. A user has uploaded a dataset. Your job is to:
 - Suggest meaningful column renaming if original column names are ambiguous
 
 Rules:
-- DO NOT use os, sys, subprocess or any unsafe imports
+- DO NOT use os, sys, subprocess, eval, exec or any unsafe imports
 - Return ONLY the cleaning logic using pandas
 
 Here is the CSV sample:
@@ -64,28 +69,22 @@ Respond ONLY with executable Python code. Do not include explanations.
 """
 
     st.subheader("🧠 LLM Analysis & Cleaning Plan")
-    with st.spinner("Running selected LLM..."):
-        if llm_model.startswith("mistral"):
-            result = subprocess.run([
-                "ollama", "run", "mistral", prompt
-            ], capture_output=True, text=True)
-            code_output = result.stdout if result.returncode == 0 else None
-        elif llm_model.startswith("gpt-4"):
-            import openai
-            openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.2
-                )
-                code_output = response.choices[0].message.content.strip()
-            except Exception as e:
-                st.error(f"GPT-4 request failed: {e}")
-                code_output = None
+    with st.spinner("Running OpenAI LLM..."):
+        import openai
+        openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
+        try:
+            response = openai.ChatCompletion.create(
+                model=llm_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2
+            )
+            code_output = response.choices[0].message.content.strip()
+        except Exception as e:
+            st.error(f"OpenAI request failed: {e}")
+            code_output = None
 
     if not code_output:
-        st.error("LLM failed to respond. Check your setup and try again.")
+        st.error("LLM failed to respond. Check your API key and usage.")
     else:
         st.code(code_output, language="python")
         if any(unsafe in code_output.lower() for unsafe in ["import os", "subprocess", "sys", "eval", "exec"]):
@@ -107,12 +106,12 @@ Respond ONLY with executable Python code. Do not include explanations.
                 sns.heatmap(cleaned_df.isnull(), cbar=False, ax=ax2)
                 st.pyplot(fig2)
 
-                st.subheader("📉 Correlation Matrix")
-                numeric_df = cleaned_df.select_dtypes(include=["number"])
-                if not numeric_df.empty:
-                    fig3, ax3 = plt.subplots(figsize=(10, 8))
-                    sns.heatmap(numeric_df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax3)
-                    st.pyplot(fig3)
+                st.subheader("📉 Correlation Matrix (After Cleaning)")
+                numeric_clean = cleaned_df.select_dtypes(include=["number"])
+                if not numeric_clean.empty:
+                    fig4, ax4 = plt.subplots(figsize=(10, 8))
+                    sns.heatmap(numeric_clean.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax4)
+                    st.pyplot(fig4)
                 else:
                     st.info("No numeric data to show correlation matrix.")
 
@@ -133,7 +132,7 @@ Respond ONLY with executable Python code. Do not include explanations.
                     st.download_button("📥 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
 
                 csv_cleaned = cleaned_df.to_csv(index=False)
-                st.download_button("Download Cleaned Data CSV", csv_cleaned, "cleaned_data.csv")
+                st.download_button("📥 Download Cleaned Data CSV", csv_cleaned, "cleaned_data.csv")
             except Exception as e:
                 st.error(f"⚠️ Failed to apply cleaning code: {e}")
 
