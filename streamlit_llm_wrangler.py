@@ -45,9 +45,12 @@ if uploaded_file:
     numeric_cols = df.select_dtypes(include='number')
     if not numeric_cols.empty:
         melted = numeric_cols.melt(var_name='variable', value_name='value')
-        fig4, ax4 = plt.subplots(figsize=(12, 6))
-        sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
-        st.pyplot(fig4)
+        if melted.empty:
+            st.info("No numeric data for outlier visualization (melted data empty).")
+        else:
+            fig4, ax4 = plt.subplots(figsize=(12, 6))
+            sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
+            st.pyplot(fig4)
     else:
         st.info("No numeric data for outlier visualization.")
 
@@ -122,9 +125,12 @@ Respond ONLY with executable Python code. Do not include explanations.
                 numeric_clean = cleaned_df.select_dtypes(include='number')
                 if not numeric_clean.empty:
                     melted_clean = numeric_clean.melt(var_name='variable', value_name='value')
-                    fig5, ax5 = plt.subplots(figsize=(12, 6))
-                    sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
-                    st.pyplot(fig5)
+                    if melted_clean.empty:
+                        st.info("No numeric data for outlier visualization (melted data empty).")
+                    else:
+                        fig5, ax5 = plt.subplots(figsize=(12, 6))
+                        sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
+                        st.pyplot(fig5)
                 else:
                     st.info("No numeric data for outlier visualization.")
 
