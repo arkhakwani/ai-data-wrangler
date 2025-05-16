@@ -2,19 +2,14 @@ import streamlit as st
 import pandas as pd
 import os
 import tempfile
+import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
-import openai
 
-# Set page config
 st.set_page_config(page_title="AI Data Wrangler", layout="wide")
-st.title("🤖 AI-Powered Data Wrangler")
+st.title("🤖 AI-Powered Data Wrangler (Offline + Free)")
 
-# Select model (only GPT-4)
-st.markdown("LLM: `gpt-4 (via OpenAI)`")
-
-# Upload file
 uploaded_file = st.file_uploader("Upload your raw data file (CSV, Excel, JSON, Parquet)", type=["csv", "xlsx", "xls", "json", "parquet"])
 
 if uploaded_file:
@@ -43,17 +38,24 @@ if uploaded_file:
     sns.heatmap(df.isnull(), cbar=False, ax=ax)
     st.pyplot(fig)
 
-    st.subheader("📎 Outlier Detection (Before Cleaning)")
+    st.subheader("📌 Outlier Detection (Before Cleaning)")
     numeric_cols = df.select_dtypes(include='number')
-    if not numeric_cols.empty:
-        melted = numeric_cols.melt()
-        fig4, ax4 = plt.subplots(figsize=(12, 6))
-        sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
-        st.pyplot(fig4)
+    if not numeric_cols.empty and numeric_cols.shape[1] > 0:
+        melted = pd.melt(numeric_cols)
+        melted.dropna(inplace=True)
+        if not melted.empty:
+            fig4, ax4 = plt.subplots(figsize=(12, 6))
+            sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
+            st.pyplot(fig4)
+        else:
+            st.info("No data available after melting and dropping NaNs.")
     else:
         st.info("No numeric data for outlier visualization.")
 
     sample_csv = df.sample(min(500, len(df))).to_csv(index=False)
+    sample_file = os.path.join(tempfile.gettempdir(), "sample.csv")
+    with open(sample_file, "w") as f:
+        f.write(sample_csv)
 
     prompt = f"""
 You are a data wrangling expert. A user has uploaded a dataset. Your job is to:
@@ -74,21 +76,21 @@ Respond ONLY with executable Python code. Do not include explanations.
 """
 
     st.subheader("🧠 LLM Analysis & Cleaning Plan")
-    with st.spinner("Running GPT-4..."):
-        openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2
-            )
-            code_output = response.choices[0].message.content.strip()
-        except Exception as e:
-            st.error(f"GPT-4 request failed: {e}")
-            code_output = None
+    import openai
+    openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else ""
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        code_output = response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"GPT-4 request failed: {e}")
+        code_output = None
 
     if not code_output:
-        st.error("LLM failed to respond. Check your API key and try again.")
+        st.error("LLM failed to respond. Check your setup and try again.")
     else:
         st.code(code_output, language="python")
         if any(unsafe in code_output.lower() for unsafe in ["import os", "subprocess", "sys", "eval", "exec"]):
@@ -110,13 +112,17 @@ Respond ONLY with executable Python code. Do not include explanations.
                 sns.heatmap(cleaned_df.isnull(), cbar=False, ax=ax2)
                 st.pyplot(fig2)
 
-                st.subheader("📎 Outlier Detection (After Cleaning)")
+                st.subheader("📌 Outlier Detection (After Cleaning)")
                 numeric_clean = cleaned_df.select_dtypes(include='number')
-                if not numeric_clean.empty:
-                    melted2 = numeric_clean.melt()
-                    fig5, ax5 = plt.subplots(figsize=(12, 6))
-                    sns.boxplot(y="variable", x="value", data=melted2, ax=ax5)
-                    st.pyplot(fig5)
+                if not numeric_clean.empty and numeric_clean.shape[1] > 0:
+                    melted_clean = pd.melt(numeric_clean)
+                    melted_clean.dropna(inplace=True)
+                    if not melted_clean.empty:
+                        fig5, ax5 = plt.subplots(figsize=(12, 6))
+                        sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
+                        st.pyplot(fig5)
+                    else:
+                        st.info("No data available after melting and dropping NaNs.")
                 else:
                     st.info("No numeric data for outlier visualization.")
 
@@ -143,7 +149,7 @@ Respond ONLY with executable Python code. Do not include explanations.
                 pdf_path = os.path.join(tempfile.gettempdir(), "report.pdf")
                 pdf.output(pdf_path)
                 with open(pdf_path, "rb") as pdf_file:
-                    st.download_button("📥 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
+                    st.download_button("📅 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
 
                 csv_cleaned = cleaned_df.to_csv(index=False)
                 st.download_button("Download Cleaned Data CSV", csv_cleaned, "cleaned_data.csv")
