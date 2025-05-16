@@ -7,7 +7,6 @@ import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
-import textwrap
 
 st.set_page_config(page_title="AI Data Wrangler", layout="wide")
 st.title("🤖 AI-Powered Data Wrangler (Offline + Free)")
@@ -42,10 +41,10 @@ if uploaded_file:
     sns.heatmap(df.isnull(), cbar=False, ax=ax)
     st.pyplot(fig)
 
-    st.subheader("📌 Outlier Detection (Before Cleaning)")
+    st.subheader("📎 Outlier Detection (Before Cleaning)")
     numeric_cols = df.select_dtypes(include='number')
     if not numeric_cols.empty:
-        melted = numeric_cols.reset_index().melt(id_vars='index')
+        melted = numeric_cols.melt(var_name="variable", value_name="value").dropna()
         fig4, ax4 = plt.subplots(figsize=(12, 6))
         sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
         st.pyplot(fig4)
@@ -105,8 +104,7 @@ Respond ONLY with executable Python code. Do not include explanations.
         else:
             try:
                 local_vars = {"df": df.copy()}
-                cleaned_code = textwrap.dedent(code_output.strip())
-                exec(cleaned_code, {}, local_vars)
+                exec(code_output, {}, local_vars)
                 cleaned_df = local_vars["df"]
 
                 st.subheader("🧼 Cleaned Data Preview")
@@ -120,10 +118,10 @@ Respond ONLY with executable Python code. Do not include explanations.
                 sns.heatmap(cleaned_df.isnull(), cbar=False, ax=ax2)
                 st.pyplot(fig2)
 
-                st.subheader("📌 Outlier Detection (After Cleaning)")
+                st.subheader("📎 Outlier Detection (After Cleaning)")
                 numeric_clean = cleaned_df.select_dtypes(include='number')
                 if not numeric_clean.empty:
-                    melted_clean = numeric_clean.reset_index().melt(id_vars='index')
+                    melted_clean = numeric_clean.melt(var_name="variable", value_name="value").dropna()
                     fig5, ax5 = plt.subplots(figsize=(12, 6))
                     sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
                     st.pyplot(fig5)
@@ -153,7 +151,7 @@ Respond ONLY with executable Python code. Do not include explanations.
                 pdf_path = os.path.join(tempfile.gettempdir(), "report.pdf")
                 pdf.output(pdf_path)
                 with open(pdf_path, "rb") as pdf_file:
-                    st.download_button("📅 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
+                    st.download_button("📥 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
 
                 csv_cleaned = cleaned_df.to_csv(index=False)
                 st.download_button("Download Cleaned Data CSV", csv_cleaned, "cleaned_data.csv")
