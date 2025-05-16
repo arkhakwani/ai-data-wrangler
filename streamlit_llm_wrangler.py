@@ -10,7 +10,8 @@ from fpdf import FPDF
 st.set_page_config(page_title="AI Data Wrangler", layout="wide")
 st.title("🤖 AI-Powered Data Wrangler (Online LLM Only)")
 
-llm_model = st.selectbox("Select LLM for Data Wrangling", ["gpt-4", "gpt-3.5-turbo"])
+# Force model to GPT-3.5 only for free-tier compatibility
+llm_model = "gpt-3.5-turbo"
 
 uploaded_file = st.file_uploader("Upload your raw data file (CSV, Excel, JSON, Parquet)", type=["csv", "xlsx", "xls", "json", "parquet"])
 
@@ -121,7 +122,7 @@ Respond ONLY with executable Python code. Do not include explanations.
                 pdf_path = os.path.join(tempfile.gettempdir(), "report.pdf")
                 pdf.output(pdf_path)
                 with open(pdf_path, "rb") as pdf_file:
-                    st.download_button("📥 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
+                    st.download_button("📅 Download PDF Summary Report", pdf_file.read(), "summary_report.pdf")
 
                 csv_cleaned = cleaned_df.to_csv(index=False)
                 st.download_button("Download Cleaned Data CSV", csv_cleaned, "cleaned_data.csv")
