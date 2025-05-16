@@ -44,7 +44,7 @@ if uploaded_file:
     st.subheader("📎 Outlier Detection (Before Cleaning)")
     numeric_cols = df.select_dtypes(include='number')
     if not numeric_cols.empty:
-        melted = numeric_cols.melt(var_name="variable", value_name="value")
+        melted = numeric_cols.melt(var_name='variable', value_name='value')
         fig4, ax4 = plt.subplots(figsize=(12, 6))
         sns.boxplot(y="variable", x="value", data=melted, ax=ax4)
         st.pyplot(fig4)
@@ -121,7 +121,7 @@ Respond ONLY with executable Python code. Do not include explanations.
                 st.subheader("📎 Outlier Detection (After Cleaning)")
                 numeric_clean = cleaned_df.select_dtypes(include='number')
                 if not numeric_clean.empty:
-                    melted_clean = numeric_clean.melt(var_name="variable", value_name="value")
+                    melted_clean = numeric_clean.melt(var_name='variable', value_name='value')
                     fig5, ax5 = plt.subplots(figsize=(12, 6))
                     sns.boxplot(y="variable", x="value", data=melted_clean, ax=ax5)
                     st.pyplot(fig5)
